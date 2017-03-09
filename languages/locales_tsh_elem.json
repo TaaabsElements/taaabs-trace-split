@@ -1,0 +1,20 @@
+{
+    "en": {
+      "interval": "Interval",
+      "offset": "Offset",
+      "customPeriodNumber": "Custom period number",
+      "normalize": "Normalize",
+      "apply": "Apply",
+      "exportcsv": "Export CSV",
+      "groupBy": "Group by"
+    },
+    "fr": {
+      "interval": "Intervale",
+      "offset": "Décalage",
+      "customPeriodNumber": "Nombre d'intervales",
+      "normalize": "Normer",
+      "apply": "Appliquer",
+      "exportcsv": "Exporter en CSV",
+      "groupBy": "Grouper par"
+    }
+}

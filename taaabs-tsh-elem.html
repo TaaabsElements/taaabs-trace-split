@@ -1,0 +1,837 @@
+<!-- POLYMER APP HELPERS -->
+<link rel="import" href="../../bower_components/app-localize-behavior/app-localize-behavior.html">
+<link rel="import" href="../../bower_components/google-chart/google-chart.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../../bower_components/paper-styles/paper-styles.html">
+<link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
+<link rel="import" href="../../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../../bower_components/paper-checkbox/paper-checkbox.html">
+<link rel="import" href="../../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../../bower_components/paper-spinner/paper-spinner.html">
+<link rel="import" href="../../bower_components/notify-toast-behavior/notify-toast-behavior.html">
+<link rel="import" href="../taaabs-time-utilities/taaabs-time-utilities.html">
+<link rel="import" href="../../bower_components/taaabs-themes/taaabs-theme.html">
+
+<dom-module id="taaabs-tsh-elem">
+  <template>
+    <style include="taaabs-theme"></style>
+    <style>
+      :host {
+        display: block;
+      }
+
+      .chartSettingsDiv{
+        padding: 5px;
+      }
+
+      #spinnerContainer{
+        position: relative;
+        margin-top: -300px;
+        left: 0;
+        width: 100%;
+        height: 300px;
+        background-color: rgba(0,0,0,0.37);
+        display: none;
+      }
+
+      #spinnerContainer paper-spinner{
+        position: relative;
+        top: 50%;
+        left: 50%;
+        margin-top: -50px;
+        margin-left: -50px;
+        height: 100px;
+        width: 100px;
+      }
+
+      /*
+      Breadcrumbs
+      Source: https://css-tricks.com/triangle-breadcrumbs/
+      */
+
+      .breadcrumb {
+        list-style: none;
+        overflow: hidden;
+        font-size: 12px;
+        padding: 0px;
+        margin: 0px;
+      }
+
+      .breadcrumb li {
+        float: left;
+      }
+
+      .breadcrumb li div {
+        color: black;
+        text-decoration: none;
+        text-align: center;
+        padding: 10px 0 10px 65px;
+        position: relative;
+        display: block;
+        float: left;
+        -webkit-transition: background-color 0.25s ease-in-out;
+        transition: background-color 0.25s ease-in-out;
+        background-color: var(--paper-grey-50);
+        cursor: pointer;
+      }
+
+      .breadcrumb li div::after {
+        content: " ";
+        display: block;
+        width: 0;
+        height: 0;
+        border-top: 50px solid transparent; /* Go big on the size, and let overflow hide */
+        border-bottom: 50px solid transparent;
+        border-left: 30px solid var(--paper-grey-50);
+        position: absolute;
+        top: 50%;
+        margin-top: -50px;
+        left: 100%;
+        z-index: 2;
+        -webkit-transition: border 0.25s ease-in-out;
+        transition: border 0.25s ease-in-out;
+      }
+
+      .breadcrumb li div::before {
+        content: " ";
+        display: block;
+        width: 0;
+        height: 0;
+        border-top: 50px solid transparent;
+        border-bottom: 50px solid transparent;
+        border-left: 30px solid white;
+        position: absolute;
+        top: 50%;
+        margin-top: -50px;
+        margin-left: 1px;
+        left: 100%;
+        z-index: 1;
+      }
+
+      .breadcrumb li:first-child div {
+        padding-left: 10px;
+      }
+      .breadcrumb li:nth-child(2n+1) div       { background-color:  var(--paper-grey-100); }
+      .breadcrumb li:nth-child(2n+1) div:after { border-left-color: var(--paper-grey-100); }
+
+      .breadcrumb li div:hover {
+        background-color: var(--paper-grey-200);
+      }
+      .breadcrumb li div:hover:after {
+        border-left-color: var(--paper-grey-200) !important;
+      }
+
+    </style>
+
+    <div class="flex-vertical">
+      <div class="chartSettingsContainer flex-horizontal">
+        <div class="chartSettingsDiv flexchild">
+          <paper-dropdown-menu id="groupBySelect" label="{{localize('groupBy')}}" disabled noink>
+            <paper-listbox class="dropdown-content" selected="{{_groupByIndex}}">
+              <paper-item value="-group-by-type-">-group-by-type-</paper-item>
+              <template is="dom-repeat" items="{{_attributesList}}">
+                <paper-item value="{{item}}">{{item}}</paper-item>
+              </template>
+  </paper-listbox>
+  </paper-dropdown-menu>
+  </div>
+  <div class="chartSettingsDiv flexchild">
+    <paper-dropdown-menu label="{{localize('interval')}}" noink id="period-index-dropdown">
+      <paper-listbox class="dropdown-content" selected="{{_periodIndex}}">
+        <paper-item value="custom-period">Custom period number</paper-item>
+        <paper-item value="millisecond">Millisecond</paper-item>
+        <paper-item value="second">Second</paper-item>
+        <paper-item value="minute">Minute</paper-item>
+        <paper-item value="hour">Hour</paper-item>
+        <paper-item value="half-day">Half-Day</paper-item>
+        <paper-item value="day">Day</paper-item>
+        <paper-item value="week">Week</paper-item>
+        <paper-item value="month">Month</paper-item>
+        <paper-item value="year">Year</paper-item>
+      </paper-listbox>
+    </paper-dropdown-menu>
+  </div>
+  <div class="chartSettingsDiv" style="width: 80px">
+    <paper-input type="Number" value="10" min="0" label="{{localize('customPeriodNumber')}}" disabled id="customPeriodInput"></paper-input>
+  </div>
+  <div class="chartSettingsDiv flexchild">
+    <paper-dropdown-menu label="{{localize('offset')}}" disabled>
+      <paper-listbox id="offsetListbox" class="dropdown-content">
+      </paper-listbox>
+    </paper-dropdown-menu>
+  </div>
+  <div class="chartSettingsDiv" style="width: 80px">
+    <paper-input type="Number" value="10" min="0" label="{{localize('customPeriodNumber')}}" disabled></paper-input>
+  </div>
+  <div class="chartSettingsDiv flexchild" style="padding-top: 14px">
+    <div class="flex-equal-around-justified">
+      <paper-button id="applyBtn" on-click="_onApplyClick" raised noink>{{localize('apply')}}</paper-button>
+    </div>
+  </div>
+  <div class="chartSettingsDiv flex-reversed flexchild" style="padding-top: 34px">
+    <div>
+      <paper-checkbox id="normalizeCheck" on-click="_onNormalizeClick" noink>{{localize('normalize')}}</paper-checkbox>
+    </div>
+  </div>
+  <div class="chartSettingsDiv flex-reversed flexchild" style="padding-top: 14px">
+    <div>
+      <paper-button id="exportCSVBtn" on-click="_onExportCSVClick" raised noink>{{localize('exportcsv')}}</paper-button>
+    </div>
+  </div>
+  </div>
+  <div id="chart-container" style="border: solid 1px black; height: 300px;">
+    <google-chart type='column' id="chart" options='{{chartOptions}}' style="width:100%" on-google-chart-select="_test">
+    </google-chart>
+    <div id="spinnerContainer">
+      <paper-spinner id="spinner" active></paper-spinner>
+    </div>
+  </div>
+  <div>
+    <ul id="breadcrumbs-container" class="breadcrumb">
+    </ul>
+  </div>
+  </div>
+
+  <paper-dialog id="explore-confirm-dialog">
+    <p> Explore the trace from[[_exploreInterval]] </p>
+    <div class="buttons">
+      <paper-button dialog-dismiss>Cancel</paper-button>
+      <paper-button dialog-confirm autofocus on-click="_onConfirmIntervalZoom">Accept</paper-button>
+    </div>
+  </paper-dialog>
+
+  <!-- Notify toast -->
+  <paper-toast class="fit-bottom" id="__notify_toast__" style="background-color:rgba(0,0,0,0.37)" duration=0> </paper-toast>
+
+  </template>
+  <script>
+    Polymer({
+
+      /**
+       * Fired when the taaabs-trace-historgram send a sparql-query.
+       *
+       * @event loading-sparql-query
+       */
+
+      is: 'taaabs-tsh-elem',
+
+      properties: {
+
+        /**
+         * The trace object.
+         *
+         * @attribute trace
+         * @type Object
+         */
+        trace: {
+          type: Object,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * The id of the split attribute.
+         *
+         * @attribute splitAttributeId
+         * @type String
+         */
+        splitAttributeId: {
+          type: String,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * The begin time (in ms from 01/01/1970) of the trace section.
+         *
+         * @attribute begin
+         * @type Number
+         */
+        begin: {
+          type: Number,
+          notify: true,
+          value: 0
+        },
+
+        /**
+         * The end time (in ms from 01/01/1970) of the trace section.
+         *
+         * @attribute end
+         * @type Number
+         */
+        end: {
+          type: Number,
+          notify: true,
+          value: 0
+        },
+
+        /**
+         * List of the obsel attributes of the trace.
+         *
+         * @attribute _attributesList
+         * @type Array
+         */
+        _attributesList: {
+          type: Array,
+          notify: true,
+          value: []
+        },
+
+        /**
+         * A taaabs-time-utilities.
+         *
+         * @attribute _ttu
+         * @type Object
+         */
+        _ttu: {
+          type: Object,
+          notify: true,
+          value: function() {
+            return new TaaabsTimeUtilities();
+          }
+        },
+
+        /** --------------------------------------------------------------------
+        // MARK: Properties : chart
+        **/
+
+        /**
+         * The options of the chart.
+         *
+         * @attribute chartOptions
+         * @type Object
+         */
+        chartOptions: {
+          type: Object,
+          notify: true,
+          value: function() {
+            return {
+              "isStacked": true,
+              "animation": {
+                "duration": 500,
+                "easing": "inAndOut"
+              },
+              "focusTarget": "category",
+              "legend": {
+                "position": "right"
+              }
+            };
+          }
+        },
+
+        /** --------------------------------------------------------------------
+        // MARK: Properties : sparql query
+        **/
+
+        /**
+         * True if the taaabs-trace-histogram is loading a sparql query. False otherwise.
+         *
+         * @attribute isLoading
+         * @type Boolean
+         */
+        isLoading: {
+          type: Boolean,
+          notify: true,
+          value: false
+        },
+
+        /**
+         * The raw datas of the sparql query.
+         *
+         * @attribute _queryResponseDatas
+         * @type Object
+         */
+        _queryResponseDatas: {
+          type: Object,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * The index of the groupby select.
+         *
+         * @attribute _groupByIndex
+         * @type Number
+         */
+        _groupByIndex: {
+          type: Number,
+          notify: true,
+          value: 0
+        },
+
+        /** --------------------------------------------------------------------
+        // MARK: Properties : chart settings
+        **/
+
+        /**
+         * The period used selected.
+         *
+         * @attribute _periodIndex
+         * @type Number
+         */
+        _periodIndex: {
+          type: Number,
+          notify: true,
+          value: null,
+          observer: '_onPeriodIndexChange'
+        },
+
+        /**
+         * List of the period indexes in the breadcrumb
+         *
+         * @attribute _breadcrumbPeriodIndex
+         * @type Array
+         */
+        _breadcrumbPeriodIndex: {
+          type: Array,
+          notify: true,
+          value: []
+        },
+
+        /**
+         * The period - select index mapping.
+         *
+         * @attribute _periodMapping
+         * @type Array
+         */
+        _periodMapping: {
+          type: Array,
+          notify: false,
+          value: function() {
+            return ['custom-period', 'millisecond', 'second', 'minute', 'hour',
+              'half-day', 'day', 'week', 'month', 'year'
+            ];
+          }
+        },
+
+        /**
+         * The number of interval we have in the timeline.
+         *
+         * @attribute _timeline_interval_count
+         * @type Number
+         */
+        _timeline_interval_count: {
+          type: Number,
+          notify: true,
+          value: 0
+        },
+
+        /**
+         * List of the different interval names.
+         *
+         * @attribute _timeline_interval_names
+         * @type Array
+         */
+        _timeline_interval_names: {
+          type: Array,
+          notify: true,
+          value: []
+        },
+
+        /** --------------------------------------------------------------------
+        // MARK: Properties : i18n
+        **/
+
+        /**
+         * Localization.
+         * fr, en.
+         *
+         * @attribute language
+         * @type String
+         */
+        language: {
+          type: String,
+          notify: true,
+        },
+      },
+
+      behaviors: [
+        Polymer.AppLocalizeBehavior,
+        NotifyToastBehavior
+      ],
+
+      attached: function() {
+        // Load i18n json.
+        this.loadResources(this.resolveUrl('./languages/locales_tsh_elem.json'));
+        this.$['explore-confirm-dialog'].set('fitInto', this.$['chart-container']);
+      },
+
+      // _test: function(e) {
+      //   var row = this.$.chart.selection[0].row + 1;
+      //   this.set('_exploreInterval', this.$.chart.data[row][0]);
+      //   this.$['explore-confirm-dialog'].open();
+      //   this.$['chart-container'].style.opacity = '0.37';
+      // },
+
+      /** ----------------------------------------------------------------------
+      // MARK: Functions : Chart
+      **/
+
+      /**
+       * Set `_attributeList` and fill the select.
+       *
+       * @param {!required} attributes {String} List of obsel attributes of the trace.
+       *
+       * @method setAttributesList
+       */
+      setAttributesList: function(attributes) {
+        this.set('_attributesList', attributes);
+        this.$.groupBySelect.disabled = false;
+      },
+
+      /**
+       * Set `begin` & `end`, then fill the breadcrumbs.
+       *
+       * @param {!required} begin {Date} Begin date of the trace.
+       * @param {!required} end {Date} End date of the trace.
+       *
+       * @method setBounds
+       */
+      setBounds: function(begin, end) {
+        this.set('begin', begin);
+        this.set('end', end);
+        this._createBreadcrumb(begin, end);
+      },
+
+      _test: function() {
+        var row = this.$.chart.selection[0].row + 1;
+        console.log(row);
+        this._ttu.resetIntervalRepeater();
+        var i = 0;
+        var result = null;
+        while (i < row) {
+          result = this._ttu.getNextIntervalUTC();
+          i++;
+        }
+        this.$['chart-container'].style.opacity = '1';
+        console.log(this._periodIndex);
+        console.log(this._periodMapping[this._periodIndex]);
+        this.set('_periodIndex', this._periodIndex - 1);
+        this.setBounds(result.begin.valueOf(), result.end.valueOf());
+        this._initLoadingStatus();
+        this._setChart();
+      },
+
+      _createBreadcrumb: function(begin, end) {
+        var bc = document.createElement('li');
+        var bcd = document.createElement('div');
+        bcd.innerHTML = this._ttu.get_european_condensed_date(new Date(begin)) + '<br/>' + this._ttu.get_european_condensed_date(new Date(end));
+        bc.appendChild(bcd);
+        var pi = JSON.parse(JSON.stringify(this._periodIndex));
+        if (pi !== null) pi = pi + 1;
+        this.push('_breadcrumbPeriodIndex', pi);
+        bc.addEventListener('click', function(evt) {
+          var elem = evt.target;
+          this._fallBackTo(begin, end, elem);
+        }.bind(this));
+        this.$['breadcrumbs-container'].appendChild(bc);
+      },
+
+      /**
+       * .
+       *
+       * @param {!required} begin {Number} The begin time.
+       * @param {!required} end {Number} The end time.
+       * @param {!required} elem {DOMElement} The clicked element.
+       *
+       * @method _fallBackTo
+       */
+      _fallBackTo: function(begin, end, elem) {
+        this.set('begin', begin);
+        this.set('end', end);
+        if (elem.tagName === "div" || elem.tagName === "DIV")
+          elem = elem.parentNode;
+
+        var period = null;
+        var index = this._breadcrumbPeriodIndex.length - 1;
+        while (this.$['breadcrumbs-container'].lastChild && this.$['breadcrumbs-container'].lastChild !== elem) {
+          this.$['breadcrumbs-container'].removeChild(this.$['breadcrumbs-container'].lastChild);
+          if (index >= 0 && this._breadcrumbPeriodIndex[index] !== null) {
+            period = this.pop('_breadcrumbPeriodIndex');
+            index--;
+          }
+        }
+        if (period) {
+          this.set('_periodIndex', period);
+          this._initLoadingStatus();
+          this._setChart();
+        }
+      },
+
+      /**
+       * Apply given colors on chosen series.
+       *
+       * @param {!required} colors {Array} List of colors to apply on series. Follow the format [[__SERIE_ID__, __COLOR __], ...].
+       *
+       * @method setColors
+       */
+      setColors: function(colors) {
+        // Return the serie index.
+        function _get_serie_index_(serie_id, existing_series_id) {
+          for (var i = 1; i < existing_series_id.length; i++) {
+            if (serie_id === existing_series_id[i]) return i - 1;
+          }
+          return -1;
+        }
+        var series = {};
+        for (var i = 0; i < colors.length; i++) {
+          var index = _get_serie_index_(colors[i][0], this.$.chart.data[0]);
+          if (index !== -1) series[index] = {
+            "color": colors[i][1]
+          };
+        }
+        this.set('chartOptions.series', series);
+      },
+
+      /** ----------------------------------------------------------------------
+      // MARK: Functions : DOM events
+      **/
+
+      /**
+       * On `apply` button click. Load the datas form the trace according to the chart settings.
+       *
+       * @method _onApplyClick
+       */
+      _onApplyClick: function() {
+        if (this._periodIndex >= 0) {
+          this._initLoadingStatus();
+          this._setChart();
+        } else {
+          this.notifyToast('You need to choose an interval first.', {
+            'type': 'Log'
+          });
+        }
+      },
+
+      /**
+       * On 'normalize' checkbox click. Normalize or not the chart.
+       *
+       * @method _onNormalizeClick
+       */
+      _onNormalizeClick: function() {
+        if (this.$.normalizeCheck.checked) this.set('chartOptions.isStacked', 'percent');
+        else this.set('chartOptions.isStacked', true);
+      },
+
+      /**
+       * On 'hideLegend' checkbox click. Hide or not the legend of the chart.
+       *
+       * @method _onHideLegendClick
+       */
+      _onExportCSVClick: function() {
+        var data = this.$.chart.data;
+        console.log(data);
+        var csvContent = "data:text/csv;charset=utf-8,";
+        data.forEach(function(infoArray, index) {
+          dataString = infoArray.join(",");
+          csvContent += index < data.length ? dataString + "\n" : dataString;
+        });
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "my_data.csv");
+        document.body.appendChild(link); // Required for FF
+        link.click(); // This will download the data file named "my_data.csv".
+        document.body.removeChild(link);
+      },
+
+      /**
+       * On `_periodIndex` change. Check if the chosen period is the custom one.
+       * In such case, allow the use of custom period input.
+       *
+       * @param {!required} evt {Event} The event object.
+       *
+       * @method _onPeriodIndexChange
+       */
+      _onPeriodIndexChange: function(evt) {
+        if (evt !== null && this._periodMapping[evt] === 'custom-period') this.$.customPeriodInput.disabled = false;
+        else this.$.customPeriodInput.disabled = true;
+      },
+
+      /** ----------------------------------------------------------------------
+      // MARK: Functions : Loading
+      **/
+
+      /**
+       * Init the loading status (DOM changes and event fire).
+       *
+       * @method _setChart
+       */
+      _initLoadingStatus: function() {
+        // Display the spinner
+        this.$.spinner.active = true;
+        this.$.spinnerContainer.style.display = 'block';
+        // Disable the apply button
+        this.$.applyBtn.disabled = true;
+        // Set the loading status
+        this.set('isLoading', true);
+        this.fire('loading-sparql-query');
+      },
+
+      /**
+       * Returns a sparql queries corresponding of the union of the counts of each obsel type in every interval of the trace.
+       *
+       * @param {!required} period {String} Period of time ('second', 'minute', 'hour', 'day', 'week', etc).
+       *
+       * @method _createRequest
+       */
+      _createRequest: function(period) {
+        // We define the request main properties.
+        var type_sub_request = (this._groupByIndex === 0 || this._groupByIndex === -1) ? "  ?o a ?type.\n" : "  ?o " + this._attributesList[this._groupByIndex - 1] + " ?type.\n";
+        var request_prefix =
+          "PREFIX : <http://liris.cnrs.fr/silex/2009/ktbs#>\n" +
+          "PREFIX m: <" + this.trace.model_uri + "#>\n" +
+          "SELECT ?att ?rangeId (COUNT(?o) as ?numMatches) ?type WHERE{\n" +
+          "  values (?rangeId ?min ?max) {";
+        var request_suffix =
+          "  }\n" +
+          type_sub_request +
+          "  ?o :hasBegin ?b.\n" +
+          "  ?o "+this.splitAttributeId+" ?att.\n" +
+          "  FILTER(?min <= ?b && ?b < ?max)\n" +
+          "}GROUP BY ?att ?rangeId ?type\n" +
+          "ORDER BY ?att ?rangeId\n";
+        // This function returns a part of the request where we count types between two temporal bounds.
+        function _get_sub_request_(index, min, max) {
+          return "(" + index + " " + min + " " + max + ")\n";
+        }
+        // We get the begin and end time of the trace.
+        var beginTime = this.begin;
+        var date = new Date(beginTime);
+        var endTime = this.end;
+        // We start the request.
+        var request = request_prefix;
+        // We init a counter. This one will gives us the number of sub request we create
+        // i.e the number of interval we get from the request.
+        var intervalCount = 0;
+        // We "floor" the date.
+        date = this._ttu.get_date_according_to_period(period, date);
+        this._ttu.set('beginDate', date);
+        this._ttu.set('interval', period);
+        this._ttu.resetIntervalRepeater();
+        // Result will define the bounds of every interval we create.
+        var result = {
+          'begin': date,
+          'end': date
+        };
+        // If custom period is chosen.
+        var customPeriodNumber = null;
+        if (period === 'custom-period') {
+          customPeriodNumber = Math.ceil((endTime - beginTime) / this.$.customPeriodInput.value);
+        }
+        // We create the intervals in a loop until we reach the end of the trace.
+        while (result.end.valueOf() < endTime) {
+          result = this._ttu.getNextIntervalUTC(customPeriodNumber);
+          request += _get_sub_request_(intervalCount, result.begin.valueOf(), result.end.valueOf(), type_sub_request);
+          this.push('_timeline_interval_names', this._ttu.get_human_readable_interval(result.begin, result.end, period));
+          intervalCount++;
+        }
+        this.set('_timeline_interval_count', intervalCount);
+        request += request_suffix;
+
+        console.log(request);
+        return {
+          query: request,
+          tic: intervalCount,
+          tin: this._timeline_interval_names
+        };
+      },
+
+      /**
+       * Init and fill the chart.
+       *
+       * @method _setChart
+       */
+      _setChart: function() {
+        // We retrieve the period ask by the user.
+        var period = this._periodMapping[this._periodIndex];
+        //Set the two titles
+        if (this._groupByIndex === 0 || this._groupByIndex === -1) this.set('chartOptions.title', 'Distribution of obsel type per ' + period);
+        else this.set('chartOptions.title', 'Distribution of obsel per attribute ' + this._attributesList[this._groupByIndex - 1] + ' & per ' + period);
+
+        this.set('_timeline_interval_names', []);
+        this.set('_timeline_interval_count', 0);
+        // We get the request
+        var query = this._createRequest(period);
+        this.fire('query-created', {
+          'query': query.query,
+          'tic': query.tic,
+          'tin': query.tin
+        });
+      },
+
+      /**
+       * Fill the chart.
+       *
+       * @method _fillChart
+       */
+      _fillChart: function(raw_datas) {
+        // We init the 3 array that'll fill the charts.
+        var stacked_datas = [
+          ['interval']
+        ];
+        var type_names = [];
+
+        // We init the different counters
+        var i, currentPosition, totalCounts;
+        i = currentPosition = totalCounts = 0;
+        // We fill the data arrays. First loop is over the global datas.
+        // Second loop is over the same interval in the global datas.
+        while (i < raw_datas.length && currentPosition < this._timeline_interval_count) {
+          // We create an array init to 0 for each type that exists.
+          // This array correpond to one stacked column in the stacked chart.
+          var _data_stacked_temp_ = [this._timeline_interval_names[currentPosition]];
+          for (var type_pos = 1; type_pos < stacked_datas[0].length; type_pos++) {
+            _data_stacked_temp_.push(0);
+          }
+          // Now we loop inside the same interval to retrieve every obsel type count existing.
+          // `Number(raw_datas[i].rangeId.value)` is the index of the interval. As long as it's the same, we're still in the same interval.
+          while (i < raw_datas.length && Number(raw_datas[i].rangeId.value) === currentPosition) {
+            // We look for the current obsel type count index in the stacked_data array
+            // Then we set tis value.
+            var exists = false;
+            var type = null;
+            var val = raw_datas[i].type.value.split('#')[1];
+            if (val) type = 'm:' + raw_datas[i].type.value.split('#')[1];
+            else type = raw_datas[i].type.value;
+
+            var j = 0;
+            for (j = 1; j < stacked_datas[0].length; j++) {
+              if (type === stacked_datas[0][j]) {
+                _data_stacked_temp_[j] = Number(raw_datas[i].numMatches.value);
+                exists = true;
+              }
+            }
+            if (!exists) {
+              stacked_datas[0].push(type);
+              for (j = 1; j < stacked_datas.length; j++) {
+                if (stacked_datas[j].length < stacked_datas[0].length) {
+                  stacked_datas[j].push(0);
+                }
+              }
+              _data_stacked_temp_.push(Number(raw_datas[i].numMatches.value));
+            }
+            // Increment.
+            i++;
+          }
+          // We push the new entry of stacked_data (i.e. the count for each type of the current interval).
+          stacked_datas.push(_data_stacked_temp_);
+          // Increment.
+          currentPosition++;
+          totalCounts = 0;
+        }
+        // We fill and draw the Charts.
+
+        this.$.chart.set('data', stacked_datas);
+        this.$.chart.redraw();
+        // Stop the spinner
+        this.$.spinner.active = false;
+        this.$.spinnerContainer.style.display = 'none';
+        // Able the apply button
+        this.$.applyBtn.disabled = false;
+      }
+    });
+  </script>
+</dom-module>

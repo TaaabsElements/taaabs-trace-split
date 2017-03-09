@@ -1,0 +1,529 @@
+<link rel="import" href="../../bower_components/app-localize-behavior/app-localize-behavior.html">
+<link rel="import" href="../../bower_components/notify-toast-behavior/notify-toast-behavior.html">
+<link rel="import" href="../../bower_components/taaabs-themes/taaabs-theme.html">
+<link rel="import" href="../../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
+<link rel="import" href="../../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../../bower_components/google-chart/google-chart.html">
+<link rel="import" href="./taaabs-tsh-elem.html">
+<link rel="import" href="../taaabs-compute-trace-split/taaabs-compute-trace-split.html">
+
+<dom-module id="taaabs-trace-split-histogram">
+  <template>
+    <style include="taaabs-theme"></style>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+
+    <paper-dialog id="cts-dialog">
+      <paper-dialog-scrollable>
+        <taaabs-compute-trace-split id="compute-trace-split"></taaabs-compute-trace-split>
+      </paper-dialog-scrollable>
+    </paper-dialog>
+
+
+    <div class="fit-width flex-horizontal">
+      <div class="flexchild">
+        <paper-dropdown-menu class="fit-width" noink id="attribute-index-dropdown">
+          <paper-listbox class="dropdown-content" selected="{{_attributeIndex}}">
+            <template is="dom-repeat" items="[[_attributes]]">
+              <paper-item>[[item]]</paper-item>
+            </template>
+  </paper-listbox>
+  </paper-dropdown-menu>
+  </div>
+  <div>
+    <paper-button id="validate-button" noink raised on-click="_onValidateClick"></paper-button>
+  </div>
+  </div>
+  <paper-button on-click="_onCreateAllClick" raised noink>Create all</paper-button>
+  <div id="histograms-target" class="flex-horizontal fit-width flex-wrap">
+  </div>
+  <!-- Notify toast -->
+  <paper-toast id="__notify_toast__" style="background-color:rgba(0,0,0,0.67)" duration=0> </paper-toast>
+  </template>
+  <script>
+    Polymer({
+      is: 'taaabs-trace-split-histogram',
+
+      properties: {
+        /**
+         * The trace we want to split.
+         *
+         * @attribute trace
+         * @type Object
+         */
+        trace: {
+          type: Object,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * The begin time of the trace.
+         *
+         * @attribute traceBegin
+         * @type Object
+         */
+        traceBegin: {
+          type: Number,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * The end time of the trace.
+         *
+         * @attribute traceEnd
+         * @type Object
+         */
+        traceEnd: {
+          type: Number,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * Language of the component.
+         *
+         * @attribute language
+         * @type String
+         */
+        language: {
+          type: String,
+          notify: true,
+          value: 'en'
+        },
+
+        /** --------------------------------------------------------------------
+        // MARK: Properties: Resources
+        **/
+
+        /**
+         * The trace base.
+         *
+         * @attribute _base
+         * @type Object
+         */
+        _base: {
+          type: Object,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * The trace model.
+         *
+         * @attribute _model
+         * @type Object
+         */
+        _model: {
+          type: Object,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * List of the attributes of the trace model.
+         *
+         * @attribute _attributes
+         * @type Array
+         */
+        _attributes: {
+          type: Array,
+          notify: true,
+          value: []
+        },
+
+        /**
+         * Uri of the chosen attribute.
+         *
+         * @attribute _attributeUri
+         * @type String
+         */
+        _attributeUri: {
+          type: String,
+          notify: true,
+          value: ""
+        },
+
+        /** --------------------------------------------------------------------
+        // MARK: Properties: DOM Elements
+        **/
+
+        /**
+         * The main histogram elem.
+         *
+         * @attribute _tshElem
+         * @type Object
+         */
+        _tshElem: {
+          type: Object,
+          notify: true,
+          value: null
+        },
+
+        /** --------------------------------------------------------------------
+        // MARK: Properties: Utils
+        **/
+
+        /**
+         * Index of the chosen attribute to split the trace.
+         *
+         * @attribute _attributeIndex
+         * @type Number
+         */
+        _attributeIndex: {
+          type: Number,
+          notify: true,
+          value: -1
+        },
+
+        /**
+         * List of values of selected attribute
+         *
+         * @attribute _attributeValues
+         * @type Array
+         */
+        _attributeValues: {
+          type: Array,
+          notify: true,
+          value: null
+        },
+
+        /**
+         * The number of interval we have in the timeline.
+         *
+         * @attribute _timeline_interval_count
+         * @type Number
+         */
+        _timeline_interval_count: {
+          type: Number,
+          notify: true,
+          value: 0
+        },
+
+        /**
+         * List of the different interval names.
+         *
+         * @attribute _timeline_interval_names
+         * @type Array
+         */
+        _timeline_interval_names: {
+          type: Array,
+          notify: true,
+          value: []
+        },
+
+        /**
+         * I18N.
+         *
+         * @attribute resources
+         * @type Object
+         */
+        resources: {
+          type: Object,
+          notify: true,
+          value: function() {
+            return {
+              "en": {
+                "loading-model": "Loading the trace model...",
+                "model-loaded": "Model loaded!",
+                "dropdown-attribute": "Attribute from which we split the trace",
+                "validate-button": "validate"
+              },
+              "fr": {
+                "loading-model": "Chargement du modèle de trace...",
+                "model-loaded": "Modèle chargé!",
+                "dropdown-attribute": "Attribut à partir duquel on va diviser la trace",
+                "validate-button": "valider"
+              }
+            };
+          }
+        }
+
+      },
+
+      behaviors: [
+        Polymer.AppLocalizeBehavior,
+        NotifyToastBehavior
+      ],
+
+      attached: function() {
+        this.$['attribute-index-dropdown'].set('label', this.localize('dropdown-attribute'));
+        this.$['validate-button'].textContent = this.localize('validate-button');
+      },
+
+      ready: function() {},
+
+      /** ----------------------------------------------------------------------
+      // MARK: Functions: init
+      **/
+
+      refresh: function() {
+        // Load the trace model
+        this._loadModel();
+      },
+
+      /**
+       * Load the trace model.
+       *
+       * @method _loadModel
+       */
+      _loadModel: function() {
+        var tid = this.notifyToast(this.localize('loading-model'), {
+          type: 'Loading',
+          timeout: -1
+        });
+        // Load the trace model
+        this.set('_model', new Samotraces.Ktbs.Model(this.trace.model_uri));
+        // Load the Model
+        this._model.load()
+          .then(function() {
+            this._loadBase();
+            this.set('_attributes', []);
+            for (var i = 0; i < this._model.list_type_attributes.length; i++) {
+              this.push('_attributes', this._uriToName(this._model.list_type_attributes[i]['@id']));
+            }
+            this.closeToast(tid);
+            this.notifyToast(this.localize('model-loaded'), {
+              type: 'Success'
+            });
+          }.bind(this))
+          .catch(function(err) {
+            this.closeToast(tid);
+            this.notifyToast('An error occured when loading the trace model. <br/>' + err, {
+              'type': 'Error',
+              'timeout': -1
+            });
+          }.bind(this));
+      },
+
+      /**
+       * Load the base in background.
+       *
+       * @method _loadBase
+       */
+      _loadBase: function() {
+        // Load the trace model
+        this.set('_base', new Samotraces.Ktbs.Base(this.trace.base_uri));
+        this._base.load()
+          .then(function() {
+            this.notifyToast("Base loaded successfully", {
+              'type': 'Success',
+              'timeout': 1500
+            });
+          }.bind(this))
+          .catch(function(err) {
+            this.notifyToast("An error occured when loading the trace base. <br/>" + err, {
+              'type': 'Error',
+              'timeout': -1
+            });
+          }.bind(this));
+      },
+
+      /** ----------------------------------------------------------------------
+      // MARK: Functions: DOM events
+      **/
+
+      /**
+       * Create the query to load every existing value of the chosen attribute.
+       *
+       * @method _onValidateClick
+       */
+      _onValidateClick: function() {
+        this.set('_attributeUri', this._nameToUri(this._attributes[this._attributeIndex]));
+        this._initTSHElem();
+      },
+
+      /**
+       * Open the dialog. TODO : finish here
+       *
+       * @method _onCreateAllClick
+       */
+      _onCreateAllClick: function() {
+        this.$['cts-dialog'].open();
+        this.$['compute-trace-split'].setFullPackage(this._base, this._model, this.trace, this._attributes, this._attributeIndex, this._attributeValues);
+      },
+
+      /** ----------------------------------------------------------------------
+      // MARK: Functions: sparql queries
+      **/
+
+      /**
+       * Initialize the main histogram.
+       *
+       * @method _initTSHElem
+       */
+      _initTSHElem: function() {
+        var elem = document.createElement('taaabs-tsh-elem');
+        elem.set('trace', this.get('trace'));
+        elem.set('language', this.language);
+        elem.set('splitAttributeId', 'm:' + this._uriToName(this._attributeUri));
+        elem.setBounds(this.traceBegin, this.traceEnd);
+        var atts = [];
+        for (var i = 0; i < this._model.list_type_attributes.length; i++) {
+          atts.push('m:' + this._uriToName(this._model.list_type_attributes[i]['@id']));
+        }
+        elem.setAttributesList(atts);
+        // Empty the tool container and add the histogram
+        var cont = this.$['histograms-target'];
+        while (cont.firstChild) {
+          cont.removeChild(cont.firstChild);
+        }
+        cont.appendChild(elem);
+        elem.addEventListener('query-created', function(evt) {
+          console.log(evt.detail);
+          this.set('_timeline_interval_count', evt.detail.tic);
+          this.set('_timeline_interval_names', evt.detail.tin);
+          this._queryTrace(evt.detail.query);
+        }.bind(this));
+      },
+
+      /**
+       * Launch the sparlq query.
+       *
+       * @param {!required} query {String} The sparql query.
+       *
+       * @method _queryTrace
+       */
+      _queryTrace: function(query) {
+        this.trace.post_query(query).then(function(response) {
+          // We sort the result now.
+          this._sortResponse(response.results.bindings);
+        }.bind(this)).catch(function(err) {
+          console.log(err);
+        });
+      },
+
+      /**
+       * Separate the value according to the split attribute. Sort eh results for each attribute.
+       *
+       * @param {!required} response {String} The sparql response.
+       *
+       * @method _sortResponse
+       */
+      _sortResponse: function(response) {
+        var sr = []; // sorted-response
+        var ov = response[0].att.value; // Old value
+        this.set('_attributeValues', []);
+        for (var i = 0; i < response.length; i) {
+          sr = [];
+          while (i < response.length && ov === response[i].att.value) {
+            sr.push(response[i]);
+            i++;
+          }
+          this._createChart(sr);
+          this.push('_attributeValues', ov);
+          if (i < response.length) ov = response[i].att.value;
+        }
+      },
+
+      /**
+       * Create a google chart.
+       *
+       * @param {!required} data {Array} The data from the trace.
+       *
+       * @method _createChart
+       */
+      _createChart: function(data) {
+        console.log(data);
+
+        // We init the 3 array that'll fill the charts.
+        var stacked_datas = [
+          ['interval']
+        ];
+        var type_names = [];
+
+        // We init the different counters
+        var i, currentPosition, totalCounts;
+        i = currentPosition = totalCounts = 0;
+        // We fill the data arrays. First loop is over the global datas.
+        // Second loop is over the same interval in the global datas.
+        while (i < data.length && currentPosition < this._timeline_interval_count) {
+          // We create an array init to 0 for each type that exists.
+          // This array correpond to one stacked column in the stacked chart.
+          var _data_stacked_temp_ = [this._timeline_interval_names[currentPosition]];
+          for (var type_pos = 1; type_pos < stacked_datas[0].length; type_pos++) {
+            _data_stacked_temp_.push(0);
+          }
+          // Now we loop inside the same interval to retrieve every obsel type count existing.
+          // `Number(data[i].rangeId.value)` is the index of the interval. As long as it's the same, we're still in the same interval.
+          while (i < data.length && Number(data[i].rangeId.value) === currentPosition) {
+            // We look for the current obsel type count index in the stacked_data array
+            // Then we set tis value.
+            var exists = false;
+            var type = null;
+            var val = data[i].type.value.split('#')[1];
+            if (val) type = 'm:' + data[i].type.value.split('#')[1];
+            else type = data[i].type.value;
+
+            var j = 0;
+            for (j = 1; j < stacked_datas[0].length; j++) {
+              if (type === stacked_datas[0][j]) {
+                _data_stacked_temp_[j] = Number(data[i].numMatches.value);
+                exists = true;
+              }
+            }
+            if (!exists) {
+              stacked_datas[0].push(type);
+              for (j = 1; j < stacked_datas.length; j++) {
+                if (stacked_datas[j].length < stacked_datas[0].length) {
+                  stacked_datas[j].push(0);
+                }
+              }
+              _data_stacked_temp_.push(Number(data[i].numMatches.value));
+            }
+            // Increment.
+            i++;
+          }
+          // We push the new entry of stacked_data (i.e. the count for each type of the current interval).
+          stacked_datas.push(_data_stacked_temp_);
+          // Increment.
+          currentPosition++;
+          totalCounts = 0;
+        }
+        // We fill and draw the Charts.
+        var chart = document.createElement('google-chart');
+        chart.set('type', "column");
+        chart.set('options', {
+          "isStacked": true,
+          "animation": {
+            "duration": 500,
+            "easing": "inAndOut"
+          },
+          "focusTarget": "category",
+          "legend": {
+            "position": "right"
+          }
+        });
+        chart.classList.add('fit-width');
+        var div = document.createElement('div');
+        div.style.width = '800px';
+        var name = document.createElement('p');
+        name.textContent = this._attributes[this._attributeIndex] + ' : ' + data[0].att.value;
+
+        chart.set('data', stacked_datas);
+        div.appendChild(name);
+        div.appendChild(chart);
+        this.$['histograms-target'].appendChild(div);
+        chart.redraw();
+      },
+
+      /** ----------------------------------------------------------------------
+      // MARK: Functions: utils
+      **/
+
+      _uriToName: function(uri) {
+        return (uri) ? uri.replace(this._model.uri + '#', '') : uri;
+      },
+
+      _nameToUri: function(name) {
+        return this._model.uri + '#' + name;
+      }
+    });
+  </script>
+</dom-module>
