@@ -6,6 +6,7 @@
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 <link rel="import" href="../../bower_components/paper-item/paper-item.html">
 <link rel="import" href="../../bower_components/google-chart/google-chart.html">
+<link rel="import" href="../sortable-list/sortable-list.html">
 <link rel="import" href="./taaabs-tsh-elem.html">
 <link rel="import" href="../taaabs-compute-trace-split/taaabs-compute-trace-split.html">
 
@@ -15,6 +16,8 @@
     <style>
       :host {
         display: block;
+        padding: 0px;
+        @apply(--layout-fit);
       }
     </style>
 
@@ -24,23 +27,31 @@
       </paper-dialog-scrollable>
     </paper-dialog>
 
-
-    <div class="fit-width flex-horizontal">
-      <div class="flexchild">
-        <paper-dropdown-menu class="fit-width" noink id="attribute-index-dropdown">
-          <paper-listbox class="dropdown-content" selected="{{_attributeIndex}}">
-            <template is="dom-repeat" items="[[_attributes]]">
-              <paper-item>[[item]]</paper-item>
-            </template>
-  </paper-listbox>
-  </paper-dropdown-menu>
-  </div>
-  <div>
-    <paper-button id="validate-button" noink raised on-click="_onValidateClick"></paper-button>
-  </div>
-  </div>
-  <paper-button on-click="_onCreateAllClick" raised noink>Create all</paper-button>
-  <div id="histograms-target" class="flex-horizontal fit-width flex-wrap">
+    <div class="fit-width flex-vertical" style="height: 100%">
+      <div>
+        <div class="fit-width flex-horizontal">
+          <div class="flexchild">
+            <paper-dropdown-menu class="fit-width" noink id="attribute-index-dropdown">
+              <paper-listbox class="dropdown-content" selected="{{_attributeIndex}}">
+                <template is="dom-repeat" items="[[_attributes]]">
+                  <paper-item>[[item]]</paper-item>
+                </template>
+      </paper-listbox>
+      </paper-dropdown-menu>
+      </div>
+      <div>
+        <paper-button id="validate-button" noink raised on-click="_onValidateClick"></paper-button>
+      </div>
+      </div>
+      <paper-button on-click="_onCreateAllClick" raised noink>Create all</paper-button>
+    </div>
+    <div class="flexchild fit-width flex-horizontal swag-scroll">
+      <div id="histograms-target" class="flex-horizontal fit-width flex-wrap flexchild">
+      </div>
+      <div style="width: 300px">
+        <sortable-list id="attributes-sortable-list" selectable></sortable-list>
+      </div>
+    </div>
   </div>
   <!-- Notify toast -->
   <paper-toast id="__notify_toast__" style="background-color:rgba(0,0,0,0.67)" duration=0> </paper-toast>
@@ -191,7 +202,7 @@
         _attributeValues: {
           type: Array,
           notify: true,
-          value: null
+          value: []
         },
 
         /**
@@ -336,7 +347,9 @@
        */
       _onValidateClick: function() {
         this.set('_attributeUri', this._nameToUri(this._attributes[this._attributeIndex]));
-        this._initTSHElem();
+        //this._initTSHElem();
+
+        this._retrieveAllValues(this._attributes[this._attributeIndex]);
       },
 
       /**
@@ -352,6 +365,66 @@
       /** ----------------------------------------------------------------------
       // MARK: Functions: sparql queries
       **/
+
+      // TODO: Doc this !
+      _retrieveAllValues: function(attr){
+        var query = "PREFIX : <http://liris.cnrs.fr/silex/2009/ktbs#>\n"+
+                    "PREFIX m: <"+this._model.uri+"#>\n"+
+                    "SELECT DISTINCT ?val {\n"+
+                    " ?o m:"+attr+" ?val\n"+
+                    "}";
+        this.trace.post_query(query).then(function(response){
+          var resp = response.results.bindings;
+          for(var i = 0; i < resp.length; i++){
+            this.push('_attributeValues', resp[i].val.value);
+          }
+          this._fillSortableList();
+          this._createCharts();
+        }.bind(this)).catch(function(err){
+          console.log(err);
+        }.bind(this));
+      },
+
+
+      _fillSortableList: function(){
+        this.$['attributes-sortable-list'].set('list', this._attributeValues);
+        this.$['attributes-sortable-list'].refresh();
+      },
+
+      _createCharts: function(){
+        var main_div = document.createElement('div');
+        var title_div = document.createElement('div');
+        title_div.textContent = this._attributeValues[0];
+        main_div.appendChild(title_div);
+        var histo = document.createElement('taaabs-trace-histogram');
+        histo.set('trace', this.get('trace'));
+        histo.set('language', this.language);
+        // Check if the constraint values must be a string or a number
+        // TODO do this better, damnit!
+        histo.set('constraint', this._attributes[this._attributeIndex]);
+        histo.setBounds(this.traceBegin, this.traceEnd);
+        histo.setAttributesList(this.get('_attributes'));
+        main_div.appendChild(histo);
+        this.$['histograms-target'].appendChild(main_div);
+        var offs = [];
+        for(var i = 0 ; i < this._attributeValues.length; i++){
+          main_div = document.createElement('div');
+          main_div.style.width = "50%";
+          title_div = document.createElement('div');
+          title_div.textContent = this._attributeValues[i];
+          main_div.appendChild(title_div);
+          var histo_off = document.createElement('taaabs-trace-histogram-lite');
+          main_div.appendChild(histo_off);
+          this.$['histograms-target'].appendChild(main_div);
+          if(this._model.list_type_attributes[this._attributeIndex].hasAttributeDatatype[0] === "xsd:string"){
+            offs.push(["\""+this._attributeValues[i]+"\"", histo_off]);
+          }
+          else{
+            offs.push([this._attributeValues[i], histo_off]);
+          }
+        }
+        histo.set('offsprings', offs);
+      },
 
       /**
        * Initialize the main histogram.
