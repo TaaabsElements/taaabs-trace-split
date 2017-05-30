@@ -33,7 +33,7 @@
             <paper-dropdown-menu class="fit-width" noink id="attribute-index-dropdown">
               <paper-listbox class="dropdown-content" selected="{{_attributeIndex}}">
                 <template is="dom-repeat" items="[[_attributes]]">
-                  <paper-item>[[item]]</paper-item>
+                  <paper-item>[[item.name]]</paper-item>
                 </template>
       </paper-listbox>
       </paper-dropdown-menu>
@@ -296,7 +296,10 @@
             this._loadBase();
             this.set('_attributes', []);
             for (var i = 0; i < this._model.list_type_attributes.length; i++) {
-              this.push('_attributes', this._uriToName(this._model.list_type_attributes[i]['@id']));
+              this.push('_attributes', {
+                'name': this._uriToName(this._model.list_type_attributes[i]['@id']),
+                'datatype': this._model.list_type_attributes[i]['hasAttributeDatatype'][0]
+              });
             }
             this.closeToast(tid);
             this.notifyToast(this.localize('model-loaded'), {
@@ -345,10 +348,10 @@
        * @method _onValidateClick
        */
       _onValidateClick: function() {
-        this.set('_attributeUri', this._nameToUri(this._attributes[this._attributeIndex]));
+        this.set('_attributeUri', this._nameToUri(this._attributes[this._attributeIndex].name));
         //this._initTSHElem();
 
-        this._retrieveAllValues(this._attributes[this._attributeIndex]);
+        this._retrieveAllValues(this._attributes[this._attributeIndex].name);
       },
 
       /**
